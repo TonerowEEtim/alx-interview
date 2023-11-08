@@ -2,47 +2,52 @@
 
 const request = require('request');
 
-function getMovieCharacters(movieId) {
-  const apiUrl = `https://swapi-api.alx-tools.com/api/films/${movieId}`;
-  request(apiUrl, { json: true }, (error, response, body) => {
-    if (error) {
-      console.error('Error: ', error);
-    } else if (response.statusCode !== 200){
-      console.error('Api call failed - status: ', response.statusCode)
-    } else {
-      const movie_characters = body.characters;
-
-      fetchAndPrintCharacters(movie_characters, 0);
-    }
-  });
-}
-
-function fetchAndPrintCharacters(characters, index) {
-  if (index >= characters.length) {
-    return [];
-  }
-
-  const characterUrl = characters[index];
-  request(characterUrl, { json: true }, (error, response, body) => {
-    if (error) {
-      console.error('Error fetching character: ', error);
-    } else if (response.statusCode !== 200) {
-      console.error('API Request failed - status code: ', response.statusCode);
-    } else {
-      const characterName = body.name;
-      console.log(characterName);
-      fetchAndPrintCharacters(characters, index + 1);
-    }
-  })
-}
-
 const movieId = process.argv[2];
-if (movieId) {
-  try {
-    getMovieCharacters(movieId);
-  } catch (e) {
-    console.log(`Connection Error: ${e}`);
+const filmEndPoint = 'https://swapi-api.hbtn.io/api/films/' + movieId;
+let people = [];
+const names = [];
+
+const requestCharacters = async () => {
+  await new Promise(resolve => request(filmEndPoint, (err, res, body) => {
+    if (err || res.statusCode !== 200) {
+      console.error('Error: ', err, '| StatusCode: ', res.statusCode);
+    } else {
+      const jsonBody = JSON.parse(body);
+      people = jsonBody.characters;
+      resolve();
+    }
+  }));
+};
+
+const requestNames = async () => {
+  if (people.length > 0) {
+    for (const p of people) {
+      await new Promise(resolve => request(p, (err, res, body) => {
+        if (err || res.statusCode !== 200) {
+          console.error('Error: ', err, '| StatusCode: ', res.statusCode);
+        } else {
+          const jsonBody = JSON.parse(body);
+          names.push(jsonBody.name);
+          resolve();
+        }
+      }));
+    }
+  } else {
+    console.error('Error: Got no Characters for some reason');
   }
-} else {
-  console.error('Please provide a movie ID!.');
-}
+};
+
+const getCharNames = async () => {
+  await requestCharacters();
+  await requestNames();
+
+  for (const n of names) {
+    if (n === names[names.length - 1]) {
+      process.stdout.write(n);
+    } else {
+      process.stdout.write(n + '\n');
+    }
+  }
+};
+
+getCharNames();
