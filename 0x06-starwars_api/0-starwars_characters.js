@@ -1,36 +1,48 @@
 #!/usr/bin/node
+
 const request = require('request');
 
-const filmId = process.argv[2];
+function getMovieCharacters(movieId) {
+  const apiUrl = `https://swapi-api.alx-tools.com/api/films/${movieId}`;
+  request(apiUrl, { json: true }, (error, response, body) => {
+    if (error) {
+      console.error('Error: ', error);
+    } else if (response.statusCode !== 200){
+      console.error('Api call failed - status: ', response.statusCode)
+    } else {
+      const movie_characters = body.characters;
 
-const url = 'https://swapi-api.hbtn.io/api/films/' + filmId + '/';
-
-function printMovieCharacters (url) {
-  request(url, async function (error, response, body) {
-    if (error) return console.log('An error occurred');
-
-    const characters = JSON.parse(body).characters;
-    if (!characters) return;
-
-    const promises = [];
-
-    for (const ch of characters) {
-      let promise = null;
-
-      promise = new Promise(function (resolve, reject) {
-        request(ch, function (error, response, body) {
-          if (error) return console.log('Error fetching character');
-          resolve(JSON.parse(body).name);
-        });
-      });
-      promises.push(promise);
-    }
-
-    const data = await Promise.all(promises);
-    for (const item of data) {
-      console.log(item);
+      fetchAndPrintCharacters(movie_characters, 0);
     }
   });
 }
 
-printMovieCharacters(url);
+function fetchAndPrintCharacters(characters, index) {
+  if (index >= characters.length) {
+    return [];
+  }
+
+  const characterUrl = characters[index];
+  request(characterUrl, { json: true }, (error, response, body) => {
+    if (error) {
+      console.error('Error fetching character: ', error);
+    } else if (response.statusCode !== 200) {
+      console.error('API Request failed - status code: ', response.statusCode);
+    } else {
+      const characterName = body.name;
+      console.log(characterName);
+      fetchAndPrintCharacters(characters, index + 1);
+    }
+  })
+}
+
+const movieId = process.argv[2];
+if (movieId) {
+  try {
+    getMovieCharacters(movieId);
+  } catch (e) {
+    console.log(`Connection Error: ${e}`);
+  }
+} else {
+  console.error('Please provide a movie ID!.');
+}
